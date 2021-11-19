@@ -14,14 +14,20 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     end
     
     anrow = size(Amat, 1)
-    if size(dmat, 1) > 0 && n != size(dmat, 2)
+    if n != size(dmat, 2)
         throw(error("Dmat is not symmetric!"))
     end
     if n != length(dvec)
         throw(error("Dmat and dvec are incompatible!"))
     end
-    if (anrow + 1 != size(Aind, 1)) || (q != size(Aind, 2)) || (q != length(bvec))
-        throw(error("Amat, Aind and bvec are incompatible!"))
+    if (anrow + 1 != size(Aind, 1)) 
+        throw(error("Incorrect number of rows. Amat, Aind are incompatible!"))
+    end
+    if (q != size(Aind, 2)) 
+        throw(error("Incorrect number of columns. Amat, Aind incompatible!"))
+    end
+    if (q != length(bvec))
+        throw(error("Incorrect number of columns. Amat, bvec incompatible!"))
     end
     if (meq > q) || (meq < 0)
         throw(error("Value of meq is invalid!"))
@@ -49,7 +55,7 @@ function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{Int},Abstr
     #                      element in column i of A is A(i,j)
     #            amat(k,i) for k>=1, is equal to the k-th non-zero element
     #                      in column i of A.
-    dmatCsr = copy(dmat')
+    dmatCsr = dmat
     maxnnz = 0
     cols = rowvals(dmatCsr) #vector of raw indices
     vals = nonzeros(dmatCsr)

@@ -23,6 +23,6 @@ The solveQPcompact function implements the dual method of Goldfarb and Idnani (1
 
 - and solve your problem
 
- `sol, lagr, crval, iact, nact, iter = solveQPcompact(D, d, amat, aind, b, 0, false)`
+ `sol, lagr, crval, iact, nact, iter = solveQPcompact(D, d, amat, aind, b_0, 0, false)`
 
  The solution is in sol. It is possible through `factorized=true` to skip the factorization step for further speed-up. In this case, the matrix D should contain its inverse square root.
