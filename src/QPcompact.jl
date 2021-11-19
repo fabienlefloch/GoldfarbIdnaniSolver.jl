@@ -43,7 +43,7 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     return sol, lagr, crval, iact, nact, iter
 end
 
-function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{Int},AbstractMatrix{T}} where {T} #amat, aind
+function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{T},AbstractMatrix{Int}} where {T} #amat, aind
     #  amat   lxq matrix (dp)
     #         *** ENTRIES CORRESPONDING TO EQUALITY CONSTRAINTS MAY HAVE
     #             CHANGED SIGNES ON EXIT ***
