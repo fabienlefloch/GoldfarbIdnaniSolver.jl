@@ -1,18 +1,18 @@
 using LinearAlgebra, SparseArrays
-export solveQPcompact,convertSparse
+export solveQPcompact, convertSparse
 
 #  This routine implements the dual method of Goldfarb and Idnani (1982, 1983) for solving quadratic programming problems of the form
 # \eqn{\min(-d^T b + 1/2 b^T D b)}{min(-d^T b + 1/2 b^T D b)} with the
 # constraints \eqn{A^T b >= b_0}.
 function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
-    Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T},
-    meq::Int; factorized::Bool=false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
+    Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T};
+    meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
     n = size(dmat, 1)
     q = 0
     if size(Amat, 1) > 0
         q = size(Amat, 2)
     end
-    
+
     anrow = size(Amat, 1)
     if n != size(dmat, 2)
         throw(error("Dmat is not symmetric!"))
@@ -20,10 +20,10 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     if n != length(dvec)
         throw(error("Dmat and dvec are incompatible!"))
     end
-    if (anrow + 1 != size(Aind, 1)) 
+    if (anrow + 1 != size(Aind, 1))
         throw(error("Incorrect number of rows. Amat, Aind are incompatible!"))
     end
-    if (q != size(Aind, 2)) 
+    if (q != size(Aind, 2))
         throw(error("Incorrect number of columns. Amat, Aind incompatible!"))
     end
     if (q != length(bvec))
@@ -33,7 +33,7 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
         throw(error("Value of meq is invalid!"))
     end
     r = min(n, q)
-    work = zeros(T, 2 * n + trunc(Int,r * (r + 5) / 2) + 2 * q + 1)
+    work = zeros(T, 2 * n + trunc(Int, r * (r + 5) / 2) + 2 * q + 1)
     sol, lagr, crval, iact, nact, iter, ierr = qpgen1(dmat, dvec, n, n, Amat, Aind, bvec, anrow, q, meq, factorized, work)
     if ierr == 1
         throw(error("constraints are inconsistent, no solution!"))
@@ -43,7 +43,7 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     return sol, lagr, crval, iact, nact, iter
 end
 
-function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{Int},AbstractMatrix{T}} where {T} #aind, amat
+function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{Int},AbstractMatrix{T}} where {T} #amat, aind
     #  amat   lxq matrix (dp)
     #         *** ENTRIES CORRESPONDING TO EQUALITY CONSTRAINTS MAY HAVE
     #             CHANGED SIGNES ON EXIT ***
@@ -59,7 +59,7 @@ function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{Int},Abstr
     maxnnz = 0
     cols = rowvals(dmatCsr) #vector of raw indices
     vals = nonzeros(dmatCsr)
-    n = size(dmatCsr,2)
+    n = size(dmatCsr, 2)
     for i = 1:n
         nzr = nzrange(dmatCsr, i)
         maxnnz = max(maxnnz, length(nzr))
@@ -74,10 +74,10 @@ function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{Int},Abstr
         for j in nzrange(dmatCsr, i)
             aind[k+1, i] = cols[j]
             amat[k, i] = vals[j]
-            k+=1
+            k += 1
         end
     end
-    return aind, amat
+    return amat, aind
 end
 
 
@@ -166,9 +166,9 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     iter = zeros(Int, 2)
     local t1inf::Bool, t2min::Bool
     local it1::Int, iwzv::Int, iwrv::Int, iwrm::Int, iwsv::Int, iwuv::Int, nvl::Int, iwnbv::Int, l1::Int
-    local temp::T, sum::T, t1::T, tt::T, gc::T, gs::T, nu::T, vsmall::T, tmpa::T, tmpb ::T
+    local temp::T, sum::T, t1::T, tt::T, gc::T, gs::T, nu::T, vsmall::T, tmpa::T, tmpb::T
     r = min(n, q)
-    l = 2 * n + trunc(Int,(r * (r + 5)) / 2) + 2 * q + 1
+    l = 2 * n + trunc(Int, (r * (r + 5)) / 2) + 2 * q + 1
     #
     #     code gleaned from Powell's ZQPCVX routine to determine a small
     #     number  that can be assumed to be an upper bound on the relative
@@ -821,7 +821,7 @@ function dpofa(a::AbstractMatrix{T}, lda::Int, n::Int)::Int where {T}
         s = 0.0
         jm1 = j - 1
         for k = 1:jm1
-            t = a[k, j] - ddot(k-1, a, 1, k, j)
+            t = a[k, j] - ddot(k - 1, a, 1, k, j)
             t /= a[k, k]
             a[k, j] = t
             s = s + t * t
@@ -1013,7 +1013,7 @@ function dposl(a::AbstractMatrix{T}, lda::Int, n::Int, b::AbstractArray{T}) wher
     #     solve trans(r)*y = b
     #
     for k = 1:n
-        t = ddotv(k-1, a, 1, k, b)
+        t = ddotv(k - 1, a, 1, k, b)
         b[k] = (b[k] - t) / a[k, k]
     end
     #
@@ -1023,6 +1023,6 @@ function dposl(a::AbstractMatrix{T}, lda::Int, n::Int, b::AbstractArray{T}) wher
         k = n + 1 - kb
         b[k] = b[k] / a[k, k]
         t = -b[k]
-        daxpyv(k-1, t, a, 1, k, b)
+        daxpyv(k - 1, t, a, 1, k, b)
     end
 end
