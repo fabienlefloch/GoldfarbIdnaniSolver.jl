@@ -8,8 +8,7 @@ using SparseArrays, StatsBase
     Aind = [2 2 2; 1 1 2; 2 2 3]
     bvec = [-8.0, 2.0, 0.0]
     meq = 0
-    factorized = false
-    sol, lagr, crval, iact, nact, iter = solveQPcompact(dmat, dvec, Amat, Aind, bvec, meq, factorized)
+    sol, lagr, crval, iact, nact, iter = solveQPcompact(dmat, dvec, Amat, Aind, bvec, meq, factorized=false)
     println(sol, " ", lagr, " ", crval, " ", iact, " ", nact, " ", iter)
     solRef = [0.4761905, 1.0476190, 2.0952381]
     for (a, b) in zip(solRef, sol)

@@ -1,4 +1,8 @@
-# GISolver.jl
+# Julia Package GISolver
+| Status | Coverage |
+| :----: | :----: |
+| [![Build Status](https://travis-ci.org/fabienlefloch/GISolver.jl.svg?branch=main)](https://travis-ci.org/fabienlefloch/GISolver.jl) | [![codecov.io](http://codecov.io/github/fabienlefloch/GISolver.jl/coverage.svg?branch=main)](http://codecov.io/github/fabienlefloch/GISolver.jl?branch=main) |
+
 Goldfarb and Idnani quadratic programming solver in native Julia.
 
 This is a port of Berwin A. Turlach [quadprog](https://github.com/cran/quadprog) to the Julia language.
