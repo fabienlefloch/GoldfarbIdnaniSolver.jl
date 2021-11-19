@@ -1,7 +1,7 @@
-# Julia Package GISolver
+# Julia Package GoldfarbIdnaniSolver
 | Status | Coverage |
 | :----: | :----: |
-| ![Build Status](https://github.com/fabienlefloch/GISolver.jl/actions/workflows/julia-runtests.yml/badge.svg) | [![codecov.io](http://codecov.io/github/fabienlefloch/GISolver.jl/coverage.svg?branch=main)](http://codecov.io/github/fabienlefloch/GISolver.jl?branch=main) |
+| ![Build Status](https://github.com/fabienlefloch/GoldfarbIdnaniSolver.jl/actions/workflows/julia-runtests.yml/badge.svg) | [![codecov.io](http://codecov.io/github/fabienlefloch/GoldfarbIdnaniSolver.jl/coverage.svg?branch=main)](http://codecov.io/github/fabienlefloch/GoldfarbIdnaniSolver.jl?branch=main) |
 
 Goldfarb and Idnani quadratic programming solver in native Julia.
 

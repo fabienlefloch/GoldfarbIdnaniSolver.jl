@@ -1,4 +1,4 @@
-using GISolver, Test
+using GoldfarbIdnaniSolver, Test
 using SparseArrays, StatsBase
 
 @testset "Qpgen1" begin
