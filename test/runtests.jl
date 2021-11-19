@@ -50,11 +50,10 @@ end
 	bvec[m*m-m+2] = 1e-5
 	aind, amat = convertSparse(gCsr)
 	println(size(aind))
-	factorized = true
 	for i= 1:m
 		dmat[m+i,m+i] = 1.0 / sqrt(dmat[m+i,m+i])
     end
-    total = @elapsed  sol, lagr, crval, iact, nact, iter = solveQPcompact(dmat, dvec, amat, aind, bvec, 0, factorized)
+    total = @elapsed  sol, lagr, crval, iact, nact, iter = solveQPcompact(dmat, dvec, amat, aind, bvec, 0, factorized=true)
 	println(sol," ", crval, " ",iter,  " in ", total)
     println(size(sol)," ",size(yl))
 	rmse = rmsd(sol[1:m],yl)

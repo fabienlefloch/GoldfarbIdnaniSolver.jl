@@ -6,7 +6,7 @@ export solveQPcompact,convertSparse
 # constraints \eqn{A^T b >= b_0}.
 function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T},
-    meq::Int, factorized::Bool)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
+    meq::Int; factorized::Bool=false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
     n = size(dmat, 1)
     q = 0
     if size(Amat, 1) > 0
