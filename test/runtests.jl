@@ -29,8 +29,8 @@ function filterConvexCallPrices(
         h[n+i] = -max(forward - strikes[i], 0) - tol
     end
     h[1] = 1 - tol
-    W = spdiagm(weights)
     strikesf = strikes
+    #W = spdiagm(weights)
     #z = Variable(n)
     #problem = minimize(square(norm(W * (z - callPrices))), G * z <= h)
     ##solve!(problem, () -> SCS.Optimizer(verbose = 0))

@@ -28,7 +28,7 @@ The solveQPcompact function implements the dual method of Goldfarb and Idnani (1
  The solution is in sol. It is possible through `factorized=true` to skip the factorization step for further speed-up. In this case, the matrix D should contain its inverse square root. The parameter `meq=0` allows to specify the number of equalities (as in quadprog R package).
 
  ## Example
-A good example that shows the performance of the solver is to render an initially non convex set of financial option prices, convex. This ensures the so-called arbitrage-free property of the option prices, see [An arbitrage-free interpolation of class C2 for option prices](https://arxiv.org/abs/2004.08650).
+A good example that shows the performance of the solver is to find the convex set closest to a set of financial option prices. This ensures the so-called arbitrage-free property of the option prices, see [An arbitrage-free interpolation of class C2 for option prices](https://arxiv.org/abs/2004.08650).
 
 In terms of code, we fill up the constraints in the sparse matrix G, and associated vector h. The D matrix is simply a diagonal matrix of squared weights, here we input the inverse square root directly. And then we call the `GoldfarbIrdaniSolver`
 
@@ -73,6 +73,10 @@ function filterConvexCallPrices(
 end
 ```
 
+In terms of Black-Scholes implied volatility, the convex filtering is very visible, and the implied volatility look smoother (linear interpolation is used in the figure):
+![Implied volatilities](/resources/images/tsla_convex_iv.png)
+
+
 For the COSMO solver, the code below the comment would read
 ```julia
     W = spdiagm(weights)
@@ -84,7 +88,7 @@ For the COSMO solver, the code below the comment would read
     return strikesf, pricesf, weights
 ```
 
-We can benchmark the two approaches as follows
+We can benchmark the solvers as follows
 ```julia
 using BenchmarkTools, StatsBase
 strikes = Float64.([20, 25, 50, 55, 75, 100, 120, 125, 140, 150, 160, 175, 180, 195, 200, 210, 230, 240, 250, 255, 260, 270, 275, 280, 285, 290, 300, 310, 315, 320, 325, 330, 335, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500, 510, 520, 550, 580, 590, 600, 650, 670, 680, 690, 700])
@@ -104,3 +108,4 @@ The benchmark results are:
 |GoldfarbIdnaniSolver | 0.0031130349998388157 | 0.205|
 |COSMO                | 0.0031130309597602370 | 21.485|
 |SCS                  | 0.0031130429769795193 | 8.381|
+
