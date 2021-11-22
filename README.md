@@ -11,7 +11,7 @@ This is a port of Berwin A. Turlach [quadprog](https://github.com/cran/quadprog)
 
 Julia has access to several high quality convex optimizer, which are able to solve quadratic programming problems, such as, for example, COSMO. But those tend to be not optimized for pure basic quadratic problems.
 
-This solver can be *100 times* faster on some problems (and without any specific code level optimization).
+This solver can be *100 times* faster on some problems (and without any specific code level optimization). Being native Julia, it also supports multiple precision big floats.
 
 ## Usage
 

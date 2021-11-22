@@ -169,20 +169,14 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     local temp::T, sum::T, t1::T, tt::T, gc::T, gs::T, nu::T, vsmall::T, tmpa::T, tmpb::T
     r = min(n, q)
     l = 2 * n + trunc(Int, (r * (r + 5)) / 2) + 2 * q + 1
+    crval = zero(T)
+    nact = 0
     #
     #     code gleaned from Powell's ZQPCVX routine to determine a small
     #     number  that can be assumed to be an upper bound on the relative
     #     precision of the computer arithmetic.
     #
-    vsmall = 1.0e-60
-    tmpa = 1.0
-    tmpb = 1.0
-    while tmpa <= 1 || tmpb <= 1
-        vsmall = vsmall + vsmall
-        tmpa = 1.0 + 0.1 * vsmall
-        tmpb = 1.0 + 0.2 * vsmall
-    end
-
+    vsmall = 2 * eps(T)
     #
     # store the initial dvec to calculate below the unconstrained minima of
     # the critical value.
@@ -263,7 +257,6 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
             throw(DomainError(sum))
         end
     end
-    nact = 0
     iter[1] = 0
     iter[2] = 0
     #
@@ -408,9 +401,6 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
             if work[iwuv+i] == zero(T) #fortran 0 behavior
                 temp = zero(T)
             end
-            if isnan(temp)
-                throw(DomainError(temp))
-            end
             if temp < t1
                 t1 = temp
                 it1 = i
@@ -424,7 +414,8 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     for i = iwzv+1:iwzv+n
         sum += work[i]^2
     end
-    if abs(sum) <= vsmall
+    #  println(iter, " ",sum)
+    if sum <= vsmall
         #
         # No step in primal space such that the new constraint becomes
         # feasible. Take step in dual space and drop a constant.
@@ -521,19 +512,32 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
                     end
                     gc = max(abs(work[i-1]), abs(work[i]))
                     gs = min(abs(work[i-1]), abs(work[i]))
-                    temp = copysign(gc * sqrt(1 + gs * gs / (gc * gc)), work[i-1])
-                    if gc == zero(T) #fortran 0
-                        temp = zero(T)
+                    #term = gc * sqrt(1 + (gs*gs)/(gc  * gc))
+                    #if isnan(term)
+                    #    term = gc
+                    #end
+                    term = max(gc, sqrt(gs^2 + gc^2))
+                    temp = copysign(term, work[i-1])
+                    # println(iter, " ",i," ",gc, " ",gs," ",term, " ",work[i-1]," ",work[i])
+
+                    if isnan(temp)
+                        println(gc, " ", gs, " ", term, " ", work[i-1], " ", work[i])
+                        throw(DomainError(temp))
                     end
+                    # if gc == zero(T) #fortran 0
+                    #     temp = zero(T)
+                    # end
                     if work[i-1] == zero(T) #fortran 0
                         gc = zero(T)
+                    else
+                        gc = work[i-1] / temp
                     end
 
                     if work[i] == zero(T) #fortran 0
                         gs = zero(T)
+                    else
+                        gs = work[i] / temp
                     end
-                    gc = work[i-1] / temp
-                    gs = work[i] / temp
                     #
                     # The Givens rotation is done with the matrix (gc gs, gs -gc).
                     # If gc is one, then element (i) of d is zero compared with element
@@ -548,7 +552,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
                         continue
                     end
                     if gc == zero(T)
-                        work[i-1] = gs * temp
+                        work[i-1] = temp * sign(gs) #important to use the sign here, instead of gs to avoid some infinite loops
                         for j = 1:n
                             temp = dmat[j, i-1]
                             dmat[j, i-1] = dmat[j, i]
@@ -563,6 +567,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
                             dmat[j, i-1] = temp
                         end
                     end
+
                 end
                 #
                 # l is still pointing to element (nact,nact) of the matrix R.
@@ -625,21 +630,24 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     end
     gc = max(abs(work[l1-1]), abs(work[l1]))
     gs = min(abs(work[l1-1]), abs(work[l1]))
-    temp = copysign(gc * sqrt(1 + (gs / gc) * (gs / gc)), work[l1-1])
+    term = max(gc, sqrt(gs^2 + gc^2))
+    temp = copysign(term, work[l1-1])
+    # temp = copysign(gc * sqrt(1 + (gs / gc) * (gs / gc)), work[l1-1])
 
-    if gc == zero(T) #fortran 0
-        temp = zero(T)
-    end
     if work[l1-1] == zero(T) #fortran 0
         gc = zero(T)
+    else
+        gc = work[l1-1] / temp
     end
 
     if work[l1] == zero(T) #fortran 0
         gs = zero(T)
+    else
+        gs = work[l1] / temp
     end
-
-    gc = work[l1-1] / temp
-    gs = work[l1] / temp
+    if isnan(gs) || isnan(gc) || isnan(temp)
+        throw(DomainError(temp))
+    end
     #
     # The Givens rotatin is done with the matrix (gc gs, gs -gc).
     # If gc is one, then element (it1+1,it1+1) of R is zero compared with
@@ -835,7 +843,7 @@ function dpofa(a::AbstractMatrix{T}, lda::Int, n::Int)::Int where {T}
     return 0
 end
 
-function daxpyv(nrow::Int, a::Float64, x::AbstractMatrix{T}, beginI::Int, j1::Int, v::AbstractArray{T}) where {T}
+function daxpyv(nrow::Int, a::T, x::AbstractMatrix{T}, beginI::Int, j1::Int, v::AbstractArray{T}) where {T}
     #This method multiplies a constant times a portion of a column
     #of a matrix and adds the product to the corresponding portion
     #of another column of the matrix --- a portion of col2 is
