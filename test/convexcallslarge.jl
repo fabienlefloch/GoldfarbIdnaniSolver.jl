@@ -7,7 +7,7 @@
     dmat = zeros(Float64, (2 * m, 2 * m))
     for i = 1:m
         dmat[i, i] = 1.0
-        dmat[m+i, m+i] = 1e-14
+        dmat[m+i, m+i] = 1e-7
     end
     dvec = zeros(Float64, 2 * m)
     dvec[1:m] = yl
@@ -48,5 +48,4 @@
     # Convex.solve!(problem, () -> COSMO.Optimizer(verbose = false, eps_rel = 1e-8, eps_abs = 1e-8))
     # println("problem status is ", problem.status, " optimal value is ", problem.optval)
     # pricesf = Convex.evaluate(z)
-
 end
