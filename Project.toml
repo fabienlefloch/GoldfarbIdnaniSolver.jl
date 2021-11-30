@@ -1,7 +1,7 @@
 name = "GoldfarbIdnaniSolver"
 uuid = "906ccaf3-f60c-4d27-be89-7848ae703cf8"
 authors = ["Fabien Le Floc'h <fabien_lefloch@2ipi.com>"]
-version = "1.0.1"
+version = "1.0.0"
 
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
