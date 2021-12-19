@@ -14,6 +14,7 @@ using LinearAlgebra, SparseArrays, StatsBase
         @test isapprox(a, b, atol = 1e-6)
     end
     @test isapprox(-2.380952, crval, atol = 1e-6)
+    
 end
 
 @testset "Gwen" begin
@@ -38,7 +39,12 @@ end
         0.000 0.0000 0.000 0 0 0 0 0 1 0 -1 -1])
     bvec = [0e+00, 0e+00, 0e+00, 0e+00, 0e+00, 0e+00, -1e+01, 0e+00, 0e+00, 0e+00, 0e+00, -1e-04]
     amat, aind = convertSparse(sparse(Amat))
-    sol, lagr, crval, iact, nact, iter = solveQPcompact(Dmat, dvec, amat, aind, bvec, meq=3)
+    sol, lagr, crval, iact, nact, iter = solveQPcompact(copy(Dmat), copy(dvec), amat, aind, copy(bvec), meq=3)
+    println(sol, " ", crval, " ", iter)
+    @test iter[1] == 7
+    @test isapprox(22.204332981569845, crval, atol = 1e-6)
+
+    sol, lagr, crval, iact, nact, iter = solveQP(Dmat, dvec, Amat, bvec, meq=3)
     println(sol, " ", crval, " ", iter)
     @test iter[1] == 7
     @test isapprox(22.204332981569845, crval, atol = 1e-6)

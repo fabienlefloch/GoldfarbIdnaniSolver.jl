@@ -9,7 +9,7 @@ This is a port of Berwin A. Turlach [quadprog](https://github.com/cran/quadprog)
 
 ## Motivation
 
-Julia has access to several high quality convex optimizer, which are able to solve quadratic programming problems, such as, for example, COSMO. But those tend to be not optimized for pure basic quadratic problems.
+Julia has access to several high quality convex optimizer, which are able to solve quadratic programming problems, such as, for example, COSMO. But those tend to be not optimized for pure basic quadratic problems. It supports dense as well as sparse matrices.
 
 This solver can be *100 times* faster on some problems (and without any specific code level optimization). Being native Julia, it also supports multiple precision big floats.
 
@@ -26,6 +26,14 @@ The solveQPcompact function implements the dual method of Goldfarb and Idnani (1
  `sol, lagr, crval, iact, nact, iter = solveQPcompact(D, d, amat, aind, b_0)`
 
  The solution is in sol. It is possible through `factorized=true` to skip the factorization step for further speed-up. In this case, the matrix D should contain its inverse square root. The parameter `meq=0` allows to specify the number of equalities (as in quadprog R package).
+
+
+ The solveQP function is the same algorithm for dense matrices:
+
+- solve your problem using
+
+ `sol, lagr, crval, iact, nact, iter = solveQP(D, d, A, b_0)`
+
 
  ## Example
 A good example that shows the performance of the solver is to find the convex set closest to a set of financial option prices. This ensures the so-called arbitrage-free property of the option prices, see [An arbitrage-free interpolation of class C2 for option prices](https://arxiv.org/abs/2004.08650).

@@ -1,11 +1,11 @@
-using LinearAlgebra, SparseArrays
-export solveQPcompact, convertSparse
+using LinearAlgebra
+export solveQP
 
 #  This routine implements the dual method of Goldfarb and Idnani (1982, 1983) for solving quadratic programming problems of the form
 # \eqn{\min(-d^T b + 1/2 b^T D b)}{min(-d^T b + 1/2 b^T D b)} with the
 # constraints \eqn{A^T b >= b_0}.
-function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
-    Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T};
+function solveQP(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
+    Amat::AbstractMatrix{T}, bvec::AbstractArray{T};
     meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
     n = size(dmat, 1)
     q = 0
@@ -20,11 +20,8 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     if n != length(dvec)
         throw(error("Dmat and dvec are incompatible!"))
     end
-    if (anrow + 1 != size(Aind, 1))
-        throw(error("Incorrect number of rows. Amat, Aind are incompatible!"))
-    end
-    if (q != size(Aind, 2))
-        throw(error("Incorrect number of columns. Amat, Aind incompatible!"))
+    if (n != anrow)
+        throw(error("Incorrect number of rows. Amat amd dvec are incompatible!"))
     end
     if (q != length(bvec))
         throw(error("Incorrect number of columns. Amat, bvec incompatible!"))
@@ -34,7 +31,7 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     end
     r = min(n, q)
     work = zeros(T, 2 * n + trunc(Int, r * (r + 5) / 2) + 2 * q + 1)
-    sol, lagr, crval, iact, nact, iter, ierr = qpgen1(dmat, dvec, n, n, Amat, Aind, bvec, anrow, q, meq, factorized, work)
+    sol, lagr, crval, iact, nact, iter, ierr = qpgen2(dmat, dvec, n, n, Amat, bvec, anrow, q, meq, factorized, work)
     if ierr == 1
         throw(error("constraints are inconsistent, no solution!"))
     elseif ierr == 2
@@ -43,128 +40,82 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     return sol, lagr, crval, iact, nact, iter
 end
 
-function convertSparse(dmat::AbstractMatrix{T})::Tuple{AbstractMatrix{T},AbstractMatrix{Int}} where {T} #amat, aind
-    #  amat   lxq matrix (dp)
-    #         *** ENTRIES CORRESPONDING TO EQUALITY CONSTRAINTS MAY HAVE
-    #             CHANGED SIGNES ON EXIT ***
-    #  iamat  (l+1)xq matrix (int)
-    #         these two matrices store the matrix A in compact form. the format
-    #         is: [ A=(A1 A2)^T ]
-    #           iamat(1,i) is the number of non-zero elements in column i of A
-    #           iamat(k,i) for k>=2, is equal to j if the (k-1)-th non-zero
-    #                      element in column i of A is A(i,j)
-    #            amat(k,i) for k>=1, is equal to the k-th non-zero element
-    #                      in column i of A.
-    dmatCsr = dmat
-    maxnnz = 0
-    cols = rowvals(dmatCsr) #vector of raw indices
-    vals = nonzeros(dmatCsr)
-    n = size(dmatCsr, 2)
-    for i = 1:n
-        nzr = nzrange(dmatCsr, i)
-        maxnnz = max(maxnnz, length(nzr))
-    end
-    aind = zeros(Int, (maxnnz + 1, n))
-    amat = zeros(T, (maxnnz, n))
-    for j = 1:n
-        aind[1, j] = length(nzrange(dmatCsr, j))
-    end
-    for i = 1:n
-        k = 1
-        for j in nzrange(dmatCsr, i)
-            aind[k+1, i] = cols[j]
-            amat[k, i] = vals[j]
-            k += 1
-        end
-    end
-    return amat, aind
-end
-
-
 #  Julia Port
 #  Copyright (C) 2021 Fabien Le Floc'h <fabien@2ipi.com>
 #  Original Fortran Code
 #  Copyright (C) 1995-2010 Berwin A. Turlach <Berwin.Turlach@gmail.com>
-#
-#  this routine uses the Goldfarb/Idnani algorithm to solve the
-#  following minimization problem:
-#
-#        minimize  -d^T x + 1/2 *  x^T D x
-#        where   A1^T x  = b1
-#                A2^T x >= b2
-#
-#  the matrix D is assumed to be positive definite.  Especially,
-#  w.l.o.g. D is assumed to be symmetric.
-#
-#  Input parameter:
-#  dmat   nxn matrix, the matrix D from above (dp)
-#         *** WILL BE DESTROYED ON EXIT ***
-#         The user has two possibilities:
-#         a) Give D (ierr=0), in this case we use routines from LINPACK
-#            to decompose D.
-#         b) To get the algorithm started we need R^-1, where D=R^TR.
-#            So if it is cheaper to calculate R^-1 in another way (D may
-#            be a band matrix) then with the general routine, the user
-#            may pass R^{-1}.  Indicated by ierr not equal to zero.
-#  dvec   nx1 vector, the vector d from above (dp)
-#         *** WILL BE DESTROYED ON EXIT ***
-#         contains on exit the solution to the initial, i.e.,
-#         unconstrained problem
-#  fddmat scalar, the leading dimension of the matrix dmat
-#  n      the dimension of dmat and dvec (int)
-#  amat   lxq matrix (dp)
-#         *** ENTRIES CORRESPONDING TO EQUALITY CONSTRAINTS MAY HAVE
-#             CHANGED SIGNES ON EXIT ***
-#  iamat  (l+1)xq matrix (int)
-#         these two matrices store the matrix A in compact form. the format
-#         is: [ A=(A1 A2)^T ]
-#           iamat(1,i) is the number of non-zero elements in column i of A
-#           iamat(k,i) for k>=2, is equal to j if the (k-1)-th non-zero
-#                      element in column i of A is A(i,j)
-#            amat(k,i) for k>=1, is equal to the k-th non-zero element
-#                      in column i of A.
-#
-#  bvec   qx1 vector, the vector of constants b in the constraints (dp)
-#         [ b = (b1^T b2^T)^T ]
-#         *** ENTRIES CORRESPONDING TO EQUALITY CONSTRAINTS MAY HAVE
-#             CHANGED SIGNES ON EXIT ***
-#  fdamat the first dimension of amat as declared in the calling program.
-#         fdamat >= n (and iamat must have fdamat+1 as first dimension)
-#  q      integer, the number of constraints.
-#  meq    integer, the number of equality constraints, 0 <= meq <= q.
-#  ierr   integer, code for the status of the matrix D:
-#            ierr =  0, we have to decompose D
-#            ierr != 0, D is already decomposed into D=R^TR and we were
-#                       given R^{-1}.
-#
-#  Output parameter:
-#  sol   nx1 the final solution (x in the notation above)
-#  lagr  qx1 the final Lagrange multipliers
-#  crval scalar, the value of the criterion at the minimum
-#  iact  qx1 vector, the constraints which are active in the final
-#        fit (int)
-#  nact  scalar, the number of constraints active in the final fit (int)
-#  iter  2x1 vector, first component gives the number of "main"
-#        iterations, the second one says how many constraints were
-#        deleted after they became active
-#  ierr  integer, error code on exit, if
-#           ierr = 0, no problems
-#           ierr = 1, the minimization problem has no solution
-#           ierr = 2, problems with decomposing D, in this case sol
-#                     contains garbage!!
-#
-#  Working space:
-#  work  vector with length at least 2*n+r*(r+5)/2 + 2*q +1
-#        where r=min(n,q)
-#
-function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n::Int, amat::AbstractMatrix{T},
-    iamat::AbstractMatrix{Int}, bvec::AbstractArray{T}, fdamat::Int, q::Int, meq::Int, factorized::Bool, work::AbstractArray{T})::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int},Int} where {T} # sol, lagr, crval, iact, nact, iter, ierr
+# 
+# 
+#   this routine uses the Goldfarb/Idnani algorithm to solve the
+#   following minimization problem:
+# 
+#         minimize  -d^T x + 1/2 *  x^T D x
+#         where   A1^T x  = b1
+#                 A2^T x >= b2
+# 
+#   the matrix D is assumed to be positive definite.  Especially,
+#   w.l.o.g. D is assumed to be symmetric.
+#   
+#   Input parameter:
+#   dmat   nxn matrix, the matrix D from above (dp)
+#          *** WILL BE DESTROYED ON EXIT ***
+#          The user has two possibilities:
+#          a) Give D (ierr=0), in this case we use routines from LINPACK
+#             to decompose D.
+#          b) To get the algorithm started we need R^-1, where D=R^TR.
+#             So if it is cheaper to calculate R^-1 in another way (D may
+#             be a band matrix) then with the general routine, the user
+#             may pass R^{-1}.  Indicated by ierr not equal to zero.
+#   dvec   nx1 vector, the vector d from above (dp)
+#          *** WILL BE DESTROYED ON EXIT ***
+#          contains on exit the solution to the initial, i.e.,
+#          unconstrained problem
+#   fddmat scalar, the leading dimension of the matrix dmat
+#   n      the dimension of dmat and dvec (int)
+#   amat   nxq matrix, the matrix A from above (dp) [ A=(A1 A2)^T ]
+#          *** ENTRIES CORRESPONDING TO EQUALITY CONSTRAINTS MAY HAVE
+#              CHANGED SIGNES ON EXIT ***
+#   bvec   qx1 vector, the vector of constants b in the constraints (dp)
+#          [ b = (b1^T b2^T)^T ]
+#          *** ENTRIES CORRESPONDING TO EQUALITY CONSTRAINTS MAY HAVE
+#              CHANGED SIGNES ON EXIT ***
+#   fdamat the first dimension of amat as declared in the calling program. 
+#          fdamat >= n !!
+#   q      integer, the number of constraints.
+#   meq    integer, the number of equality constraints, 0 <= meq <= q.
+#   ierr   integer, code for the status of the matrix D:
+#             ierr =  0, we have to decompose D
+#             ierr != 0, D is already decomposed into D=R^TR and we were
+#                        given R^{-1}.
+# 
+#   Output parameter:
+#   sol   nx1 the final solution (x in the notation above)
+#   lagr  qx1 the final Lagrange multipliers
+#   crval scalar, the value of the criterion at the minimum      
+#   iact  qx1 vector, the constraints which are active in the final
+#         fit (int)
+#   nact  scalar, the number of constraints active in the final fit (int)
+#   iter  2x1 vector, first component gives the number of "main" 
+#         iterations, the second one says how many constraints were
+#         deleted after they became active
+#   ierr  integer, error code on exit, if
+#            ierr = 0, no problems
+#            ierr = 1, the minimization problem has no solution
+#            ierr = 2, problems with decomposing D, in this case sol
+#                      contains garbage!!
+# 
+#   Working space:
+#   work  vector with length at least 2*n+r*(r+5)/2 + 2*q +1
+#         where r=min(n,q)
+# 
+function qpgen2(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n::Int, amat::AbstractMatrix{T},
+   bvec::AbstractArray{T}, fdamat::Int, q::Int, meq::Int, factorized::Bool, work::AbstractArray{T})::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int},Int} where {T} # sol, lagr, crval, iact, nact, iter, ierr
 
-    sol = zeros(T, n)
-    lagr = zeros(T, q)
-    iact = zeros(Int, q)
-    iter = zeros(Int, 2)
-    local t1inf::Bool, t2min::Bool
+   sol = zeros(T, n)
+   lagr = zeros(T, q)
+   iact = zeros(Int, q)
+   iter = zeros(Int, 2)
+   local t1inf::Bool, t2min::Bool
     local it1::Int, iwzv::Int, iwrv::Int, iwrm::Int, iwsv::Int, iwuv::Int, nvl::Int, iwnbv::Int, l1::Int
     local temp::T, sum::T, t1::T, tt::T, gc::T, gs::T, nu::T, vsmall::T, tmpa::T, tmpb::T
     r = min(n, q)
@@ -173,7 +124,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     nact = 0
     vsmall = 2 * eps(T) #we deviate here from original Fortran code based on Powell guess
 
-    #
+      #
     # store the initial dvec to calculate below the unconstrained minima of
     # the critical value.
     #
@@ -185,7 +136,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
         iact[i] = 0
         lagr[i] = zero(T)
     end
-    #
+      #
     # get the initial solution
     #
     if !factorized
@@ -197,7 +148,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
         dposl(dmat, fddmat, n, dvec)
         dpori(dmat, fddmat, n)
     else
-        #
+               #
         # Matrix D is already factorized, so we have to multiply d first with
         # R^-T and then with R^-1.  R^-1 is stored in the upper half of the
         # array dmat.
@@ -215,7 +166,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
             end
         end
     end
-    #
+     #
     # set lower triangular of dmat to zero, store dvec in sol and
     # calculate value of the criterion at unconstrained minima
     #
@@ -230,7 +181,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     end
     crval = -crval / 2
     ierr = 0
-    #
+       #
     # calculate some constants, i.e., from which index on the different
     # quantities are stored in the work matrix
     #
@@ -245,7 +196,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     #
     for i = 1:q
         sum = zero(T)
-        for j = 1:iamat[1, i]
+        for j = 1:n
             sum += amat[j, i]^2
         end
         work[iwnbv+i] = sqrt(sum)
@@ -260,7 +211,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     #
     @label L50
     iter[1] += 1
-    #
+  #
     # calculate all constraints and check which are still violated
     # for the equality constraints we have to check whether the normal
     # vector has to be negated (as well as bvec in that case)
@@ -269,8 +220,8 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     for i = 1:q
         l += 1
         sum = -bvec[i]
-        for j = 1:iamat[1, i]
-            sum += amat[j, i] * sol[iamat[j+1, i]]
+        for j = 1:n
+            sum += amat[j, i] * sol[j]
         end
         if abs(sum) < vsmall
             sum = zero(T)
@@ -280,7 +231,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
         else
             work[l] = -abs(sum)
             if sum > zero(T)
-                for j = 1:iamat[1, i]
+                for j = 1:n
                     amat[j, i] = -amat[j, i]
                 end
                 bvec[i] = -bvec[i]
@@ -294,7 +245,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     for i = 1:nact
         work[iwsv+iact[i]] = zero(T)
     end
-    #
+      #
     # we weight each violation by the number of non-zero elements in the
     # corresponding row of A. then we choose the violated constraint which
     # has maximal absolute value, i.e., the minimum.
@@ -318,7 +269,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
         end
         return (sol, lagr, crval, iact, nact, iter, ierr)
     end
-    #
+        #
     # calculate d=J^Tn^+ where n^+ is the normal vector of the violated
     # constraint. J is stored in dmat in this implementation!!
     # if we drop a constraint, we have to jump back here.
@@ -326,8 +277,8 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     @label L55
     for i = 1:n
         sum = zero(T)
-        for j = 1:iamat[1, nvl]
-            sum += dmat[iamat[j+1, nvl], i] * amat[j, nvl]
+        for j = 1:n
+            sum += dmat[j, i] * amat[j, nvl]
         end
         if isnan(sum)
             throw(DomainError(sum))
@@ -346,7 +297,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
             work[l1+i] += dmat[i, j] * work[j]
         end
     end
-    #
+  #
     # and r = R^{-1} d_1, check also if r has positive elements (among the
     # entries corresponding to inequalities constraints).
     #
@@ -375,8 +326,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
         t1inf = false
         it1 = i
     end
-
-    #
+  #
     # if r has positive elements, find the partial step length t1, which is
     # the maximum step in dual space without violating dual feasibility.
     # it1  stores in which component t1, the min of u/r, occurs.
@@ -404,6 +354,7 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
         end
     end
     #
+   #
     # test if the z vector is equal to zero
     #
     sum = zero(T)
@@ -440,8 +391,8 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
         # keep sum (which is z^Tn^+) to update crval below!
         #
         sum = zero(T)
-        for i = 1:iamat[1, nvl]
-            sum += work[iwzv+iamat[i+1, nvl]] * amat[i, nvl]
+        for i = 1:n
+            sum += work[iwzv+i] * amat[i, nvl]
         end
         tt = -work[iwsv+nvl] / sum
         if work[iwsv+nvl] == zero(T) #fortran 0 behavior
@@ -579,15 +530,15 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
             # the fit violates the chosen constraint now.
             #
             sum = -bvec[nvl]
-            for j = 1:iamat[1, nvl]
-                sum = sum + sol[iamat[j+1, nvl]] * amat[j, nvl]
+            for j = 1:n
+                sum = sum + sol[j] * amat[j, nvl]
             end
             if nvl > meq
                 work[iwsv+nvl] = sum
             else
                 work[iwsv+nvl] = -abs(sum)
                 if sum > zero(T)
-                    for j = 1:iamat[1, nvl]
+                    for j = 1:n
                         amat[j, nvl] = -amat[j, nvl]
                     end
                     bvec[nvl] = -bvec[nvl]
@@ -717,316 +668,3 @@ function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n:
     return (sol, lagr, crval, iact, nact, iter, ierr)
 end
 
-function ddot(n::Int, dx::AbstractArray{T}, incx::Int, dy::AbstractArray{T}, incy::Int)::T where {T}
-
-    #  Purpose
-    #  =======
-    #
-    #     DDOT forms the dot product of two vectors.
-    #     uses unrolled loops for increments equal to one.
-    #
-    dtemp = zero(T)
-    if n <= 0
-        return dtemp
-    end
-    if incx == 1 && incy == 1
-        m = n % 5
-        if m == 0
-            for i = 1:m
-                dtemp += dx[i] * dy[i]
-            end
-            if (n .< 5)
-                return dtemp
-            end
-        end
-        mp1 = m + 1
-        for i = mp1:5:n
-            dtemp += dx[i] * dy[i] + dx[i+1] * dy[i+1] + dx[i+2] * dy[i+2] + dx[i+3] * dy[i+3] + dx[i+4] * dy[i+4]
-        end
-    else
-        ix = 1
-        iy = 1
-        if (inx < 0)
-            ix = (-n + 1) * incx + 1
-        end
-        if (incy .< 0)
-            iy = (-n + 1) * incy + 1
-        end
-        for i = 1:n
-            dtemp += dx[ix] * dy[iy]
-            ix += incx
-            iy += incy
-        end
-    end
-    return dtemp
-end
-
-
-function ddot(nrow::Int, x::AbstractMatrix{T}, beginI::Int, j1::Int, j2::Int)::T where {T}
-    coldot = zero(T)
-    if nrow <= 0
-        return coldot
-    end
-    m = nrow % 5
-    mpbegin = m + beginI
-    endI = beginI + nrow - 1
-    for i = beginI:mpbegin-1
-        coldot += x[i, j1] * x[i, j2]
-    end
-
-    for i = mpbegin:5:endI
-        coldot += x[i, j1] * x[i, j2] + x[i+1, j1] * x[i+1, j2] + x[i+2, j1] * x[i+2, j2] + x[i+3, j1] * x[i+3, j2] + x[i+4, j1] * x[i+4, j2]
-    end
-    return coldot
-end
-
-
-function ddotv(nrow::Int, x::AbstractMatrix{T}, beginI::Int, j1::Int, v::AbstractArray{T})::T where {T}
-    coldot = zero(T)
-    if nrow <= 0
-        return coldot
-    end
-    m = nrow % 5
-    mpbegin = m + beginI
-    endI = beginI + nrow - 1
-    for i = beginI:mpbegin-1
-        coldot += x[i, j1] * v[i]
-    end
-
-    for i = mpbegin:5:endI
-        coldot += x[i, j1] * v[i] + x[i+1, j1] * v[i+1] + x[i+2, j1] * v[i+2] + x[i+3, j1] * v[i+3] + x[i+4, j1] * v[i+4]
-    end
-    return coldot
-end
-
-function dscal(nrow::Int, a::T, x::AbstractMatrix{T}, beginI::Int, j::Int) where {T}
-    if nrow <= 0
-        return
-    end
-    m = nrow % 5
-    mpbegin = m + beginI
-    endI = beginI + nrow - 1
-
-    for i = beginI:mpbegin-1
-        x[i, j] *= a
-    end
-    for i = mpbegin:5:endI
-        x[i, j] *= a
-        x[i+1, j] *= a
-        x[i+2, j] *= a
-        x[i+3, j] *= a
-        x[i+4, j] *= a
-    end
-end
-
-function dpofa(a::AbstractMatrix{T}, lda::Int, n::Int)::Int where {T}
-    for j = 1:n
-        info = j
-        s = 0.0
-        jm1 = j - 1
-        for k = 1:jm1
-            t = a[k, j] - ddot(k - 1, a, 1, k, j)
-            t /= a[k, k]
-            a[k, j] = t
-            s = s + t * t
-        end
-        s = a[j, j] - s
-        if s <= zero(T)
-            return info
-        end
-        a[j, j] = sqrt(s)
-    end
-    return 0
-end
-
-function daxpyv(nrow::Int, a::T, x::AbstractMatrix{T}, beginI::Int, j1::Int, v::AbstractArray{T}) where {T}
-    #This method multiplies a constant times a portion of a column
-    #of a matrix and adds the product to the corresponding portion
-    #of another column of the matrix --- a portion of col2 is
-    #  replaced by the corresponding portion of a*col1 + col2.
-    #It uses unrolled loops.
-    #It is a modification of the LINPACK subroutine
-    #DAXPY.  In the LINPACK listing DAXPY is attributed to Jack Dongarra
-    #with a date of 3/11/78.
-
-    if nrow <= 0
-        return
-    end
-    if a == zero(T)
-        return
-    end
-
-    m = nrow % 4
-    mpbegin = m + beginI
-    endI = beginI + nrow - 1
-
-    for i = beginI:mpbegin-1
-        v[i] += a * x[i, j1]
-    end
-
-    for i = mpbegin:4:endI
-        v[i] += a * x[i, j1]
-        v[i+1] += a * x[i+1, j1]
-        v[i+2] += a * x[i+2, j1]
-        v[i+3] += a * x[i+3, j1]
-    end
-
-    return
-end
-
-function daxpy(nrow::Int, a::T, x::AbstractMatrix{T}, beginI::Int, j1::Int, j2::Int) where {T}
-    #This method multiplies a constant times a portion of a column
-    #  *of a matrix and adds the product to the corresponding portion
-    #  *of another column of the matrix --- a portion of col2 is
-    #  replaced by the corresponding portion of a*col1 + col2.
-    #  *It uses unrolled loops.
-    #  *It is a modification of the LINPACK subroutine
-    #  *DAXPY.  In the LINPACK listing DAXPY is attributed to Jack Dongarra
-    #  *with a date of 3/11/78.
-
-    if nrow <= 0
-        return
-    end
-    if a == zero(T)
-        return
-    end
-
-    m = nrow % 4
-    mpbegin = m + beginI
-    endI = beginI + nrow - 1
-
-    for i = beginI:mpbegin-1
-        x[i, j2] += a * x[i, j1]
-    end
-
-    for i = mpbegin:4:endI
-        x[i, j2] += a * x[i, j1]
-        x[i+1, j2] += a * x[i+1, j1]
-        x[i+2, j2] += a * x[i+2, j1]
-        x[i+3, j2] += a * x[i+3, j1]
-    end
-end
-
-function dpori(a::AbstractMatrix{T}, lda::Int, n::Int) where {T}
-    #     dpori computes the inverse of the factor of a
-    #     double precision symmetric positive definite matrix
-    #     using the factors computed by dpofa.
-    #
-    #     modification of dpodi by BaT 05/11/95
-    #
-    #     on entry
-    #
-    #        a       double precision(lda, n)
-    #                the output  a  from dpofa
-    #
-    #        lda     integer
-    #                the leading dimension of the array  a .
-    #
-    #        n       integer
-    #                the order of the matrix  a .
-    #
-    #     on return
-    #
-    #        a       if dpofa was used to factor  a  then
-    #                dpodi produces the upper half of inverse(a) .
-    #                elements of  a  below the diagonal are unchanged.
-    #
-    #     error condition
-    #
-    #        a division by zero will occur if the input factor contains
-    #        a zero on the diagonal and the inverse is requested.
-    #        it will not occur if the subroutines are called correctly
-    #        and if dpoco or dpofa has set info .eq. 0 .
-    #
-    #     linpack.  this version dated 08/14/78 .
-    #     cleve moler, university of new mexico, argonne national lab.
-    #     modified by Berwin A. Turlach 05/11/95
-    #
-    #     subroutines and functions
-    #
-    #     blas daxpy,dscal
-    #     fortran mod
-    #
-    #     internal variables
-    #
-    for k = 1:n
-        a[k, k] = one(T) / a[k, k]
-        t = -a[k, k]
-        dscal(k, t, a, 1, k)
-        kp1 = k + 1
-        if n >= kp1
-            for j = kp1:n
-                t = a[k, j]
-                a[k, j] = zero(T)
-                daxpy(k, t, a, 1, k, j)
-            end
-        end
-    end
-end
-
-function dposl(a::AbstractMatrix{T}, lda::Int, n::Int, b::AbstractArray{T}) where {T}
-    #
-    #     dposl solves the double precision symmetric positive definite
-    #     system a * x = b
-    #     using the factors computed by dpoco or dpofa.
-    #
-    #     on entry
-    #
-    #        a       double precision(lda, n)
-    #                the output from dpoco or dpofa.
-    #
-    #        lda     integer
-    #                the leading dimension of the array  a .
-    #
-    #        n       integer
-    #                the order of the matrix  a .
-    #
-    #        b       double precision(n)
-    #                the right hand side vector.
-    #
-    #     on return
-    #
-    #        b       the solution vector  x .
-    #
-    #     error condition
-    #
-    #        a division by zero will occur if the input factor contains
-    #        a zero on the diagonal.  technically this indicates
-    #        singularity but it is usually caused by improper subroutine
-    #        arguments.  it will not occur if the subroutines are called
-    #        correctly and  info .eq. 0 .
-    #
-    #     to compute  inverse(a) * c  where  c  is a matrix
-    #     with  p  columns
-    #           call dpoco(a,lda,n,rcond,z,info)
-    #           if (rcond is too small .or. info .ne. 0) go to ...
-    #           do 10 j = 1, p
-    #              call dposl(a,lda,n,c(1,j))
-    #        10 continue
-    #
-    #     linpack.  this version dated 08/14/78 .
-    #     cleve moler, university of new mexico, argonne national lab.
-    #
-    #     subroutines and functions
-    #
-    #     blas daxpy,ddot
-    #
-    #     internal variables
-    #
-    #
-    #     solve trans(r)*y = b
-    #
-    for k = 1:n
-        t = ddotv(k - 1, a, 1, k, b)
-        b[k] = (b[k] - t) / a[k, k]
-    end
-    #
-    #     solve r*x = y
-    #
-    for kb = 1:n
-        k = n + 1 - kb
-        b[k] = b[k] / a[k, k]
-        t = -b[k]
-        daxpyv(k - 1, t, a, 1, k, b)
-    end
-end

@@ -48,4 +48,12 @@
     # Convex.solve!(problem, () -> COSMO.Optimizer(verbose = false, eps_rel = 1e-8, eps_abs = 1e-8))
     # println("problem status is ", problem.status, " optimal value is ", problem.optval)
     # pricesf = Convex.evaluate(z)
+
+    total = @elapsed sol, lagr, crval, iact, nact, iter = solveQP(copy(dmat), copy(dvec), gCsr', copy(bvec), factorized = true)
+    println(sol, " ", crval, " ", iter, " in ", total)
+    println(size(sol), " ", size(yl))
+    rmse = rmsd(sol[1:m], yl)
+    println("RMSE ", rmse, " ", rmse^2)
+    @test isapprox(4.5e-5, rmse^2, atol = 1e-6)
+  
 end
