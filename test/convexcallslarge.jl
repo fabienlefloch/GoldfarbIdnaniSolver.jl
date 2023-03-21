@@ -56,4 +56,11 @@
     println("RMSE ", rmse, " ", rmse^2)
     @test isapprox(4.5e-5, rmse^2, atol = 1e-6)
   
+    total = @elapsed sol, lagr, crval, iact, nact, iter = solveQP(inv(dmat^2), copy(dvec), gCsr', copy(bvec), factorized = false)
+    println(sol, " ", crval, " ", iter, " in ", total)
+    println(size(sol), " ", size(yl))
+    rmse = rmsd(sol[1:m], yl)
+    println("RMSE ", rmse, " ", rmse^2)
+    @test isapprox(4.5e-5, rmse^2, atol = 1e-6)
+  
 end

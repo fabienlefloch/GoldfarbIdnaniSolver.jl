@@ -822,13 +822,13 @@ end
 function dpofa(a::AbstractMatrix{T}, lda::Int, n::Int)::Int where {T}
     for j = 1:n
         info = j
-        s = 0.0
+        s = zero(T)
         jm1 = j - 1
         for k = 1:jm1
             t = a[k, j] - ddot(k - 1, a, 1, k, j)
             t /= a[k, k]
             a[k, j] = t
-            s = s + t * t
+            s = s + t^2
         end
         s = a[j, j] - s
         if s <= zero(T)
@@ -952,7 +952,7 @@ function dpori(a::AbstractMatrix{T}, lda::Int, n::Int) where {T}
     for k = 1:n
         a[k, k] = one(T) / a[k, k]
         t = -a[k, k]
-        dscal(k, t, a, 1, k)
+        dscal(k-1, t, a, 1, k)
         kp1 = k + 1
         if n >= kp1
             for j = kp1:n
