@@ -41,13 +41,15 @@ end
     amat, aind = convertSparse(sparse(Amat))
     sol, lagr, crval, iact, nact, iter = solveQPcompact(copy(Dmat), copy(dvec), amat, aind, copy(bvec), meq=3)
     println(sol, " ", crval, " ", iter)
-    @test iter[1] == 7
-    @test isapprox(22.204332981569845, crval, atol = 1e-6)
+    expectedsol = [1.625775e+00, 6.513265e+00,  5.641129e-01,  6.023351e-14,  5.641129e-01,   -2.775558e-17,  5.641129e-01,  0.000000e+00,  6.026127e-14]
+    @test isapprox(expectedsol,sol,atol=1e-6)
+    @test iter[1] == 12
+    @test isapprox(-9.463198, crval, atol = 1e-6)
 
     sol, lagr, crval, iact, nact, iter = solveQP(Dmat, dvec, Amat, bvec, meq=3)
     println(sol, " ", crval, " ", iter)
-    @test iter[1] == 7
-    @test isapprox(22.204332981569845, crval, atol = 1e-6)
+    @test iter[1] == 12
+    @test isapprox(-9.463198, crval, atol = 1e-6)
 
 end
 
