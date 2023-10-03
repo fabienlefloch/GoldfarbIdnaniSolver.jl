@@ -7,7 +7,7 @@ export solveQPcompact!, solveQPcompact, convertSparse
 function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T};
     meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
-    return solveQPcompact!(copy(dmat), copy(dvec), Amat, Aind, bvec, meq = meq, factorized = factorized)
+    return solveQPcompact!(Matrix(dmat), Vector(dvec), Amat, Aind, bvec, meq = meq, factorized = factorized)
 end
 
 function solveQPcompact!(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},

@@ -7,7 +7,7 @@ export solveQP!, solveQP
 function solveQP(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     Amat::AbstractMatrix{T}, bvec::AbstractArray{T};
     meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
-    return solveQP!(copy(dmat), copy(dvec), Amat, bvec; meq = meq, factorized = factorized)
+    return solveQP!(Matrix(dmat), Vector(dvec), Amat, bvec; meq = meq, factorized = factorized)
 end
 function solveQP!(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     Amat::AbstractMatrix{T}, bvec::AbstractArray{T};
