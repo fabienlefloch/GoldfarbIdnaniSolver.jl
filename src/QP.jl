@@ -1,5 +1,5 @@
 using LinearAlgebra
-export solveQP
+export solveQP!, solveQP
 
 """
     solveQP(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, Amat::AbstractMatrix{T}, bvec::AbstractArray{T}; meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}}
@@ -48,6 +48,11 @@ This routine implements the dual method of Goldfarb and Idnani (1982, 1983) for 
 function solveQP(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     Amat::AbstractMatrix{T}, bvec::AbstractArray{T};
     meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
+    return solveQP!(Matrix(dmat), Vector(dvec), Amat, bvec; meq = meq, factorized = factorized)
+end
+function solveQP!(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
+    Amat::AbstractMatrix{T}, bvec::AbstractArray{T};
+    meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
     n = size(dmat, 1)
     q = 0
     if size(Amat, 1) > 0
@@ -72,7 +77,7 @@ function solveQP(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     end
     r = min(n, q)
     work = zeros(T, 2 * n + trunc(Int, r * (r + 5) / 2) + 2 * q + 1)
-    sol, lagr, crval, iact, nact, iter, ierr = qpgen2(dmat, dvec, n, n, Amat, bvec, anrow, q, meq, factorized, work)
+    sol, lagr, crval, iact, nact, iter, ierr = qpgen2!(dmat, dvec, n, n, Amat, bvec, anrow, q, meq, factorized, work)
     if ierr == 1
         throw(error("constraints are inconsistent, no solution!"))
     elseif ierr == 2
@@ -149,7 +154,7 @@ end
 #   work  vector with length at least 2*n+r*(r+5)/2 + 2*q +1
 #         where r=min(n,q)
 # 
-function qpgen2(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n::Int, amat::AbstractMatrix{T},
+function qpgen2!(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n::Int, amat::AbstractMatrix{T},
    bvec::AbstractArray{T}, fdamat::Int, q::Int, meq::Int, factorized::Bool, work::AbstractArray{T})::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int},Int} where {T} # sol, lagr, crval, iact, nact, iter, ierr
 
    sol = zeros(T, n)

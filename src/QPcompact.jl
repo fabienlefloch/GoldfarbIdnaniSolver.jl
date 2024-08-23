@@ -1,5 +1,5 @@
 using LinearAlgebra, SparseArrays
-export solveQPcompact, convertSparse
+export solveQPcompact!, solveQPcompact, convertSparse
 
 """
     solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T}; meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}}
@@ -59,6 +59,12 @@ Amat and Aind may be created from a Julia sparse matrix through the convertSpars
 function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T};
     meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
+    return solveQPcompact!(Matrix(dmat), Vector(dvec), Amat, Aind, bvec, meq = meq, factorized = factorized)
+end
+
+function solveQPcompact!(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
+    Amat::AbstractMatrix{T}, Aind::AbstractMatrix{Int}, bvec::AbstractArray{T};
+    meq::Int = 0, factorized::Bool = false)::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int}} where {T} #sol, lagr, crval, iact, nact, iter
     n = size(dmat, 1)
     q = 0
     if size(Amat, 1) > 0
@@ -86,7 +92,7 @@ function solveQPcompact(dmat::AbstractMatrix{T}, dvec::AbstractArray{T},
     end
     r = min(n, q)
     work = zeros(T, 2 * n + trunc(Int, r * (r + 5) / 2) + 2 * q + 1)
-    sol, lagr, crval, iact, nact, iter, ierr = qpgen1(dmat, dvec, n, n, Amat, Aind, bvec, anrow, q, meq, factorized, work)
+    sol, lagr, crval, iact, nact, iter, ierr = qpgen1!(dmat, dvec, n, n, Amat, Aind, bvec, anrow, q, meq, factorized, work)
     if ierr == 1
         throw(error("constraints are inconsistent, no solution!"))
     elseif ierr == 2
@@ -219,7 +225,7 @@ end
 #  work  vector with length at least 2*n+r*(r+5)/2 + 2*q +1
 #        where r=min(n,q)
 #
-function qpgen1(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n::Int, amat::AbstractMatrix{T},
+function qpgen1!(dmat::AbstractMatrix{T}, dvec::AbstractArray{T}, fddmat::Int, n::Int, amat::AbstractMatrix{T},
     iamat::AbstractMatrix{Int}, bvec::AbstractArray{T}, fdamat::Int, q::Int, meq::Int, factorized::Bool, work::AbstractArray{T})::Tuple{AbstractArray{T},AbstractArray{T},T,AbstractArray{Int},Int,AbstractArray{Int},Int} where {T} # sol, lagr, crval, iact, nact, iter, ierr
 
     sol = zeros(T, n)
